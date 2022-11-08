@@ -78,6 +78,15 @@ public class player_controller : MonoBehaviour
     protected Vector2 water_lerp_speed = Vector2.zero;
     private float in_water_time = 0f;
 
+    [Header("block_translation")]
+    [SerializeField] public GameObject grab_block;
+    [SerializeField] private KeyCode block_grab_key = KeyCode.G;
+    [SerializeField] private Vector3 block_local_offset = new Vector3(0.5f, 0, 0);
+    private Vector3 flip_vector = Vector3.zero;
+    [SerializeField] private bool can_grab => (Input.GetKey(block_grab_key) && grab_block == null && !grab_cor);
+    private bool can_grab_off = false;
+    private bool grab_cor = false; //코루틴 on 인지 판별해줌
+
 
     // Start is called before the first frame update
     void Start()
@@ -95,7 +104,31 @@ public class player_controller : MonoBehaviour
         
         jump();
         
-        
+        if(grab_block != null)
+        {
+            if (get_axis_hor < 0)
+            {
+                flip_vector.x = gameObject.transform.position.x - block_local_offset.x;
+                flip_vector.y = gameObject.transform.position.y + block_local_offset.y;
+                flip_vector.z = gameObject.transform.position.z + block_local_offset.z;
+                grab_block.transform.position = flip_vector;
+            }
+            else if(get_axis_hor >= 0)
+            {
+                grab_block.transform.position = gameObject.transform.position + block_local_offset;
+            }
+            
+            if (Input.GetKey(block_grab_key) && can_grab_off == true)
+            {
+                Debug.Log("out block");
+                grab_block.transform.SetParent(null);
+                grab_block = null;
+                if (!grab_cor)
+                {
+                    StartCoroutine(block_out_cool());
+                }
+            }
+        }
     }
 
     private void FixedUpdate()
@@ -331,6 +364,11 @@ public class player_controller : MonoBehaviour
             water_lerp_speed = Vector2.zero;//각종 벡터들 초기화
         }
 
+        if(collision.tag == "block_trans")
+        {
+            
+        }
+
         
     }
 
@@ -346,7 +384,20 @@ public class player_controller : MonoBehaviour
             lerp_speed = Vector2.zero;//각종 벡터들 초기화
         }
 
-        
+        if (collision.tag == "block_trans" && can_grab) //grab block eanble
+        {
+            //Debug.Log("block stay");
+            
+                Debug.Log("block_on");
+                collision.transform.parent.SetParent(gameObject.transform);
+                grab_block = collision.transform.parent.gameObject;
+            if (!grab_cor)
+            {
+                Debug.Log("call cor");
+                StartCoroutine(block_out_cool());
+            }
+        }
+
     }
 
     private void OnTriggerExit2D(Collider2D collision)
@@ -359,6 +410,11 @@ public class player_controller : MonoBehaviour
             lerp_speed = Vector2.zero;
             lerp_speed.x = player_rigid2d.velocity.x; //물 속에서 나왔을 때 부자연스럽게 하지 않기위해
             water_lerp_speed = Vector2.zero; //각종 벡터들 초기화
+        }
+
+        if (collision.tag == "block_trans")
+        {
+
         }
     }
 
@@ -382,5 +438,15 @@ public class player_controller : MonoBehaviour
                         transform.position - _innerRaycastOffset + Vector3.up * _topRaycastLength + Vector3.left * _topRaycastLength);
         Gizmos.DrawLine(transform.position + _innerRaycastOffset + Vector3.up * _topRaycastLength,
                         transform.position + _innerRaycastOffset + Vector3.up * _topRaycastLength + Vector3.right * _topRaycastLength);
+    }
+
+    IEnumerator block_out_cool()
+    {
+        grab_cor = true;
+        can_grab_off = false;
+        Debug.Log("grab cor on");
+        yield return new WaitForSeconds(0.4f);
+        can_grab_off = true;
+        grab_cor = false;
     }
 }
